@@ -10,7 +10,7 @@ import (
 )
 
 // http post远程调用，使用json协议
-func PostJ(client *http.Client, url string, request interface{}, response interface{}) ([]byte, error) {
+func PostJ(client *http.Client, url, contentType string, request interface{}, response interface{}) ([]byte, error) {
 	var reqBody []byte
 	var err error
 	var rsp *http.Response
@@ -22,10 +22,15 @@ func PostJ(client *http.Client, url string, request interface{}, response interf
 		}
 	}
 
+	cType := "application/json"
+	if len(contentType) != 0 {
+		cType = contentType
+	}
+
 	if client != nil {
-		rsp, err = client.Post(url, "application/json", bytes.NewReader(reqBody))
+		rsp, err = client.Post(url, cType, bytes.NewReader(reqBody))
 	} else {
-		rsp, err = http.Post(url, "application/json", bytes.NewReader(reqBody))
+		rsp, err = http.Post(url, cType, bytes.NewReader(reqBody))
 	}
 
 	if err != nil {
@@ -45,7 +50,7 @@ func PostJ(client *http.Client, url string, request interface{}, response interf
 }
 
 // http post远程调用，使用protobuf协议
-func PostP(client *http.Client, url string, request proto.Message, response proto.Message) ([]byte, error) {
+func PostP(client *http.Client, url, contentType string, request proto.Message, response proto.Message) ([]byte, error) {
 	var reqBody []byte
 	var err error
 	var rsp *http.Response
@@ -57,10 +62,15 @@ func PostP(client *http.Client, url string, request proto.Message, response prot
 		}
 	}
 
+	cType := "application/json"
+	if len(contentType) != 0 {
+		cType = contentType
+	}
+
 	if client != nil {
-		rsp, err = client.Post(url, "application/x-protobuf", bytes.NewReader(reqBody))
+		rsp, err = client.Post(url, cType, bytes.NewReader(reqBody))
 	} else {
-		rsp, err = http.Post(url, "application/x-protobuf", bytes.NewReader(reqBody))
+		rsp, err = http.Post(url, cType, bytes.NewReader(reqBody))
 	}
 
 	if err != nil {
