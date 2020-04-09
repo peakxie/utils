@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"google.golang.org/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 )
 
 // http post远程调用，使用json协议
