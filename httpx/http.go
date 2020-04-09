@@ -72,7 +72,7 @@ func PostP(client *http.Client, url string, request proto.Message, response prot
 	if response != nil {
 		err = proto.Unmarshal(rspBody, response)
 		if err != nil {
-			return nil, err
+			return rspBody, err
 		}
 	}
 	return rspBody, nil
