@@ -42,7 +42,7 @@ func TestHttpJ(t *testing.T) {
 
 		var rsp JsonTest
 		//发请求，自动打印请求包和回包，不需要自己序列化和反序列化协议
-		_, e := httpx.PostJ(nil, "http://localhost:8080/test", &JsonTest{Name: "name", Picture: "xxxxxxxxxxxxxxx"}, &rsp)
+		_, e := httpx.PostJ(nil, "http://localhost:8080/test", "", &JsonTest{Name: "name", Picture: "xxxxxxxxxxxxxxx"}, &rsp)
 		if e != nil {
 			fmt.Println("err", e)
 		} else {
