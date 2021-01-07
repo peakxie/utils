@@ -70,7 +70,7 @@ func Wrapper(fun interface{}, reqfun interface{}, rspfun interface{}) gin.Handle
 			}
 		}()
 		reqV := reflect.ValueOf(reqfun).Call([]reflect.Value{})
-		if len(reqV) != 1 && reqV[0].IsNil() {
+		if len(reqV) != 1 || reqV[0].IsNil() {
 			Log(ctx).Errorf("get req error.")
 			panic(errors.New("req struct err"))
 		}
