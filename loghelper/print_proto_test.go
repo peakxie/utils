@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/peakxie/utils/loghelper/test_proto"
+	"github.com/peakxie/utils/test_proto"
 )
 
 type Inner struct {

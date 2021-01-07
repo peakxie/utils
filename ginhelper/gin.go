@@ -8,6 +8,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/golang/protobuf/proto"
 	"github.com/peakxie/utils/loghelper"
 	"github.com/sirupsen/logrus"
 )
@@ -59,9 +61,13 @@ func WrapperJ(fun interface{}, reqfun interface{}, rspfun interface{}) gin.Handl
 			}
 
 			Log(ctx).Infof("[RSP] URI:(%s) BODY:(%s)", ctx.Request.URL.Path, loghelper.ToPrintString(rsp))
-			ctx.Header("Content-Type", "application/json")
-			ctx.JSON(http.StatusOK, rsp)
 
+			if _, ok := rsp.(proto.Message); ok {
+				ctx.ProtoBuf(http.StatusOK, rsp)
+			} else {
+				//ctx.Header("Content-Type", "application/json")
+				ctx.JSON(http.StatusOK, rsp)
+			}
 		}()
 		reqV := reflect.ValueOf(reqfun).Call([]reflect.Value{})
 		if len(reqV) != 1 && reqV[0].IsNil() {
@@ -69,7 +75,14 @@ func WrapperJ(fun interface{}, reqfun interface{}, rspfun interface{}) gin.Handl
 			panic(errors.New("req struct err"))
 		}
 
-		if err := ctx.ShouldBindJSON(reqV[0].Interface()); err != nil {
+		req := reqV[0].Interface()
+		var err error
+		if _, ok := req.(proto.Message); ok {
+			err = ctx.ShouldBindWith(reqV[0].Interface(), binding.ProtoBuf)
+		} else {
+			err = ctx.ShouldBindJSON(reqV[0].Interface())
+		}
+		if err != nil {
 			Log(ctx).Errorf("parse param err:%v", err)
 			panic(err)
 		}
