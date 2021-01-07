@@ -10,7 +10,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-var defaultClient = &http.Client{
+var DefaultClient = &http.Client{
 	Timeout: time.Duration(3 * time.Second),
 }
 
@@ -35,7 +35,7 @@ func PostJ(client *http.Client, url, contentType string, request interface{}, re
 	if client != nil {
 		rsp, err = client.Post(url, cType, bytes.NewReader(reqBody))
 	} else {
-		rsp, err = defaultClient.Post(url, cType, bytes.NewReader(reqBody))
+		rsp, err = DefaultClient.Post(url, cType, bytes.NewReader(reqBody))
 	}
 
 	if err != nil {
@@ -75,7 +75,7 @@ func PostP(client *http.Client, url, contentType string, request proto.Message, 
 	if client != nil {
 		rsp, err = client.Post(url, cType, bytes.NewReader(reqBody))
 	} else {
-		rsp, err = defaultClient.Post(url, cType, bytes.NewReader(reqBody))
+		rsp, err = DefaultClient.Post(url, cType, bytes.NewReader(reqBody))
 	}
 
 	if err != nil {
