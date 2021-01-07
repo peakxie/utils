@@ -47,7 +47,7 @@ func Log(ctx *gin.Context) *logrus.Entry {
 // fun(c *gin.Context, req interface{}) (interface{}, error)
 // reqfun() (interface{})
 // rspfun(error) (interface{})
-func WrapperJ(fun interface{}, reqfun interface{}, rspfun interface{}) gin.HandlerFunc {
+func Wrapper(fun interface{}, reqfun interface{}, rspfun interface{}) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		var rsp interface{}

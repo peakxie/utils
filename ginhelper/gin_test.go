@@ -59,8 +59,8 @@ func ControlPB(c *gin.Context, req *test_proto.Test) (*test_proto.Test, error) {
 func TestMain(m *testing.M) {
 	//logs.Init("./log", 10, 10, 10, 6)
 	router := gin.Default()
-	router.POST("/test", ginhelper.WrapperJ(Control, GetReq, GetRsp))
-	router.POST("/testPB", ginhelper.WrapperJ(ControlPB, GetReqPB, GetRspPB))
+	router.POST("/test", ginhelper.Wrapper(Control, GetReq, GetRsp))
+	router.POST("/testPB", ginhelper.Wrapper(ControlPB, GetReqPB, GetRspPB))
 
 	router.Run(":8086")
 }
