@@ -1,0 +1,10 @@
+syntax = "proto2";
+package test_proto;
+option go_package = ".;test_proto";
+
+message Test {
+	required uint64 business_id = 1;  //业务id
+	required uint64 module_id = 2; //模块id
+	required string picture = 3;
+	required string request_id = 4;
+}
