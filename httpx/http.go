@@ -5,9 +5,14 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 )
+
+var defaultClient = &http.Client{
+	Timeout: time.Duration(3 * time.Second),
+}
 
 // http post远程调用，使用json协议
 func PostJ(client *http.Client, url, contentType string, request interface{}, response interface{}) ([]byte, error) {
@@ -30,7 +35,7 @@ func PostJ(client *http.Client, url, contentType string, request interface{}, re
 	if client != nil {
 		rsp, err = client.Post(url, cType, bytes.NewReader(reqBody))
 	} else {
-		rsp, err = http.Post(url, cType, bytes.NewReader(reqBody))
+		rsp, err = defaultClient.Post(url, cType, bytes.NewReader(reqBody))
 	}
 
 	if err != nil {
@@ -70,7 +75,7 @@ func PostP(client *http.Client, url, contentType string, request proto.Message, 
 	if client != nil {
 		rsp, err = client.Post(url, cType, bytes.NewReader(reqBody))
 	} else {
-		rsp, err = http.Post(url, cType, bytes.NewReader(reqBody))
+		rsp, err = defaultClient.Post(url, cType, bytes.NewReader(reqBody))
 	}
 
 	if err != nil {
