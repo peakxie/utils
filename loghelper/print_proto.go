@@ -20,7 +20,7 @@ import (
 
 var (
 	// PrintProtoLen 设置打印pb报文的长度，超过这个长度将会对报文中的超长字段进行处理（截断）
-	PrintProtoLen = 1024
+	PrintProtoLen = 512
 
 	// PrintStringLen 设置打印报文中字符串的长度，超过这个长度将会对报文中的超长字段进行处理（截断）
 	PrintStringLen = 64
