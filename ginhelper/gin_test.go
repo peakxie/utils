@@ -24,7 +24,7 @@ func GetReq() *TestReq {
 	return &TestReq{}
 }
 
-func GetRsp(err error) *TestRsp {
+func GetRsp(c *gin.Context, err error) *TestRsp {
 	return &TestRsp{
 		Error: err.Error(),
 	}
@@ -41,7 +41,7 @@ func GetReqPB() *test_proto.Test {
 	return &test_proto.Test{}
 }
 
-func GetRspPB(err error) *test_proto.Test {
+func GetRspPB(c *gin.Context, err error) *test_proto.Test {
 	return &test_proto.Test{
 		BusinessId: proto.Uint64(3),
 		ModuleId:   proto.Uint64(4),

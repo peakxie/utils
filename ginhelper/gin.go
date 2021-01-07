@@ -46,7 +46,7 @@ func Log(ctx *gin.Context) *logrus.Entry {
 
 // fun(c *gin.Context, req interface{}) (interface{}, error)
 // reqfun() (interface{})
-// rspfun(error) (interface{})
+// rspfun(c *gin.Context, err error) (interface{})
 func Wrapper(fun interface{}, reqfun interface{}, rspfun interface{}) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
@@ -54,7 +54,7 @@ func Wrapper(fun interface{}, reqfun interface{}, rspfun interface{}) gin.Handle
 
 		defer func() {
 			if err := recover(); err != nil {
-				rspV := reflect.ValueOf(rspfun).Call([]reflect.Value{reflect.ValueOf(err)})
+				rspV := reflect.ValueOf(rspfun).Call([]reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(err)})
 				if len(rspV) == 1 {
 					rsp = rspV[0].Interface()
 				}
