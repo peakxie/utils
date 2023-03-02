@@ -6,6 +6,8 @@ require (
 	github.com/0x00b/logrus-formatter v1.0.0
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/gin-gonic/gin v1.5.0
+	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/stdr v1.2.2
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.4.0-rc.4
 	github.com/natefinch/lumberjack v2.0.0+incompatible
