@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 )
 
-func StructIntf(st any) (any, error) {
+func StructToMapIntf(st any) (map[string]any, error) {
 	bts, err := json.Marshal(st)
 	if err != nil {
 		return nil, err
