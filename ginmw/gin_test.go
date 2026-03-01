@@ -194,6 +194,104 @@ func TestWrapperH_HandlerError_EmptyName(t *testing.T) {
 	}
 }
 
+// customResponse is a custom response format for testing ResponsePacker.
+type customResponse struct {
+	Status  string `json:"status"`
+	Payload any    `json:"payload,omitempty"`
+	ErrMsg  string `json:"err_msg,omitempty"`
+}
+
+// customPacker implements ResponsePacker with a different format.
+type customPacker struct{}
+
+func (customPacker) PackSuccess(data any) any {
+	return &customResponse{Status: "ok", Payload: data}
+}
+
+func (customPacker) PackError(err error) any {
+	return &customResponse{Status: "fail", ErrMsg: err.Error()}
+}
+
+func TestSetResponsePacker_Custom(t *testing.T) {
+	SetResponsePacker(&customPacker{})
+	defer SetResponsePacker(nil)
+
+	router := gin.New()
+	router.POST("/test", WrapperH(testHandler))
+
+	w := httptest.NewRecorder()
+	body := `{"name":"world"}`
+	req, _ := http.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var resp customResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v, body: %s", err, w.Body.String())
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status 'ok', got %q", resp.Status)
+	}
+	payload, ok := resp.Payload.(map[string]any)
+	if !ok {
+		t.Fatalf("expected payload to be map, got %T", resp.Payload)
+	}
+	if payload["greeting"] != "hello world" {
+		t.Errorf("expected greeting 'hello world', got %v", payload["greeting"])
+	}
+}
+
+func TestSetResponsePacker_CustomError(t *testing.T) {
+	SetResponsePacker(&customPacker{})
+	defer SetResponsePacker(nil)
+
+	router := gin.New()
+	router.POST("/test", WrapperH(plainErrorHandler))
+
+	w := httptest.NewRecorder()
+	body := `{"name":"test"}`
+	req, _ := http.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	var resp customResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v, body: %s", err, w.Body.String())
+	}
+	if resp.Status != "fail" {
+		t.Errorf("expected status 'fail', got %q", resp.Status)
+	}
+	if resp.ErrMsg != "something went wrong" {
+		t.Errorf("expected err_msg 'something went wrong', got %q", resp.ErrMsg)
+	}
+}
+
+func TestSetResponsePacker_ResetToDefault(t *testing.T) {
+	SetResponsePacker(&customPacker{})
+	SetResponsePacker(nil) // reset
+
+	router := gin.New()
+	router.POST("/test", WrapperH(testHandler))
+
+	w := httptest.NewRecorder()
+	body := `{"name":"world"}`
+	req, _ := http.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	resp := parseAPIResponse(t, w)
+	if resp.Code != 0 {
+		t.Errorf("expected code 0, got %d", resp.Code)
+	}
+	if resp.Message != "success" {
+		t.Errorf("expected message 'success', got %q", resp.Message)
+	}
+}
+
 func TestSetLogger(t *testing.T) {
 	var infoCalls, errorCalls int
 	mock := &mockLogger{

@@ -28,9 +28,11 @@ func WrapperH[Request, Response any](fn func(*gin.Context, *Request) (*Response,
 			err = c.ShouldBindJSON(&req)
 		}
 
+		pk := getPacker()
+
 		if err != nil {
 			log.Errorf("parse param err: %v", err)
-			c.JSON(http.StatusOK, buildErrorResponse(err))
+			c.JSON(http.StatusOK, pk.PackError(err))
 			return
 		}
 
@@ -40,11 +42,11 @@ func WrapperH[Request, Response any](fn func(*gin.Context, *Request) (*Response,
 		rsp, err := fn(c, &req)
 		if err != nil {
 			log.Errorf("[RSP] URI:(%s) err: %v", c.Request.URL.Path, err)
-			c.JSON(http.StatusOK, buildErrorResponse(err))
+			c.JSON(http.StatusOK, pk.PackError(err))
 			return
 		}
 
-		resp := &APIResponse{Code: 0, Message: "success", Data: rsp}
+		resp := pk.PackSuccess(rsp)
 		rspBytes, _ := json.Marshal(resp)
 		log.Infof("[RSP] URI:(%s) BODY:(%s)", c.Request.URL.Path, string(rspBytes))
 		c.JSON(http.StatusOK, resp)
