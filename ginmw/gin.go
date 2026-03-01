@@ -14,8 +14,9 @@ import (
 type LogFunc func(c *gin.Context, format string, args ...any)
 
 var (
-	logFn   LogFunc
-	logFnMu sync.RWMutex
+	logFn      LogFunc
+	errorLogFn LogFunc
+	logFnMu    sync.RWMutex
 )
 
 // SetLogFunc sets the global log function used by WrapperH.
@@ -26,9 +27,27 @@ func SetLogFunc(fn LogFunc) {
 	logFn = fn
 }
 
+// SetErrorLogFunc sets the global error-level log function used by WrapperH.
+// When set, error logs (param parse failures, handler errors) use this function
+// instead of the regular LogFunc. If fn is nil, error logs fall back to LogFunc.
+func SetErrorLogFunc(fn LogFunc) {
+	logFnMu.Lock()
+	defer logFnMu.Unlock()
+	errorLogFn = fn
+}
+
 func getLogFunc() LogFunc {
 	logFnMu.RLock()
 	defer logFnMu.RUnlock()
+	return logFn
+}
+
+func getErrorLogFunc() LogFunc {
+	logFnMu.RLock()
+	defer logFnMu.RUnlock()
+	if errorLogFn != nil {
+		return errorLogFn
+	}
 	return logFn
 }
 
@@ -47,6 +66,7 @@ func getLogFunc() LogFunc {
 func WrapperH[Request, Response any](fn func(*gin.Context, *Request) (*Response, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log := getLogFunc()
+		errLog := getErrorLogFunc()
 
 		var req Request
 		var err error
@@ -59,8 +79,8 @@ func WrapperH[Request, Response any](fn func(*gin.Context, *Request) (*Response,
 		pk := getPacker()
 
 		if err != nil {
-			if log != nil {
-				log(c, "parse param err: %v", err)
+			if errLog != nil {
+				errLog(c, "parse param err: %v", err)
 			}
 			c.JSON(http.StatusOK, pk.PackError(err))
 			return
@@ -73,8 +93,8 @@ func WrapperH[Request, Response any](fn func(*gin.Context, *Request) (*Response,
 
 		rsp, err := fn(c, &req)
 		if err != nil {
-			if log != nil {
-				log(c, "[RSP] URI:(%s) err: %v", c.Request.URL.Path, err)
+			if errLog != nil {
+				errLog(c, "[RSP] URI:(%s) err: %v", c.Request.URL.Path, err)
 			}
 			c.JSON(http.StatusOK, pk.PackError(err))
 			return

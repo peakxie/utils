@@ -326,6 +326,89 @@ func TestSetLogFunc(t *testing.T) {
 	}
 }
 
+func TestSetErrorLogFunc(t *testing.T) {
+	var infoCalls, errorCalls int
+	SetLogFunc(func(c *gin.Context, format string, args ...any) {
+		infoCalls++
+	})
+	SetErrorLogFunc(func(c *gin.Context, format string, args ...any) {
+		errorCalls++
+	})
+	defer SetLogFunc(nil)
+	defer SetErrorLogFunc(nil)
+
+	router := gin.New()
+	router.POST("/test", WrapperH(testHandler))
+
+	// successful request — info log only, no error log
+	w := httptest.NewRecorder()
+	body := `{"name":"world"}`
+	req, _ := http.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if infoCalls != 2 {
+		t.Errorf("expected 2 info log calls, got %d", infoCalls)
+	}
+	if errorCalls != 0 {
+		t.Errorf("expected 0 error log calls, got %d", errorCalls)
+	}
+
+	// handler error — should use error log func
+	infoCalls, errorCalls = 0, 0
+	w = httptest.NewRecorder()
+	body = `{"name":""}`
+	req, _ = http.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if infoCalls != 1 {
+		t.Errorf("expected 1 info log call (REQ), got %d", infoCalls)
+	}
+	if errorCalls != 1 {
+		t.Errorf("expected 1 error log call, got %d", errorCalls)
+	}
+
+	// parse error — should use error log func
+	infoCalls, errorCalls = 0, 0
+	w = httptest.NewRecorder()
+	body = `{invalid`
+	req, _ = http.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	if infoCalls != 0 {
+		t.Errorf("expected 0 info log calls, got %d", infoCalls)
+	}
+	if errorCalls != 1 {
+		t.Errorf("expected 1 error log call, got %d", errorCalls)
+	}
+}
+
+func TestSetErrorLogFunc_FallbackToLogFunc(t *testing.T) {
+	// When errorLogFn is nil, error logs should fall back to logFn.
+	var logCalls int
+	SetLogFunc(func(c *gin.Context, format string, args ...any) {
+		logCalls++
+	})
+	SetErrorLogFunc(nil)
+	defer SetLogFunc(nil)
+
+	router := gin.New()
+	router.POST("/test", WrapperH(testHandler))
+
+	w := httptest.NewRecorder()
+	body := `{"name":""}`
+	req, _ := http.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	// REQ log + error log, both go through logFn
+	if logCalls != 2 {
+		t.Errorf("expected 2 log calls (fallback), got %d", logCalls)
+	}
+}
+
 func TestSetLogFunc_Nil(t *testing.T) {
 	// Without LogFunc set, should still work (no panic, no logging).
 	SetLogFunc(nil)
