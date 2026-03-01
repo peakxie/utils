@@ -1,66 +1,52 @@
 package ginmw
 
 import (
-	"errors"
+	"encoding/json"
 	"net/http"
-	"reflect"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
-	"github.com/golang/protobuf/proto"
-	"github.com/peakxie/utils/internal/log"
-	"github.com/peakxie/utils/loghelper"
 )
 
-// fun(c *gin.Context, req interface{}) (interface{}, error)
-// reqfun() (interface{})
-// rspfun(c *gin.Context, err error) (interface{})
-func Wrapper(fun interface{}, reqfun interface{}, rspfun interface{}) gin.HandlerFunc {
+// WrapperH wraps a typed handler function into a gin.HandlerFunc.
+// The handler receives a parsed request and returns a response and error.
+// The response is wrapped in a unified APIResponse{Code, Message, Data} format.
+//
+// On success (err == nil): {code: 0, message: "success", data: <response>}
+// On error implementing Coder: {code: coder.Code(), message: coder.Message()}
+// On plain error: {code: -1, message: err.Error()}
+//
+// Request binding: GET uses ShouldBindQuery, other methods use ShouldBindJSON.
+func WrapperH[Request, Response any](fn func(*gin.Context, *Request) (*Response, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		log := getLogger()
 
-		var rsp interface{}
-
-		defer func() {
-			if err := recover(); err != nil {
-				rspV := reflect.ValueOf(rspfun).Call([]reflect.Value{reflect.ValueOf(c), reflect.ValueOf(err)})
-				if len(rspV) == 1 {
-					rsp = rspV[0].Interface()
-				}
-			}
-			log.Infof("[RSP] URI:(%s) BODY:(%s)", c.Request.URL.Path, loghelper.ToPrintString(rsp))
-
-			if _, ok := rsp.(proto.Message); ok {
-				c.ProtoBuf(http.StatusOK, rsp)
-			} else {
-				//c.Header("Content-Type", "application/json")
-				c.JSON(http.StatusOK, rsp)
-			}
-		}()
-		reqV := reflect.ValueOf(reqfun).Call([]reflect.Value{})
-		if len(reqV) != 1 || reqV[0].IsNil() {
-			log.Errorf("get req error.")
-			panic(errors.New("req struct err"))
-		}
-
-		req := reqV[0].Interface()
+		var req Request
 		var err error
-		if _, ok := req.(proto.Message); ok {
-			err = c.ShouldBindWith(reqV[0].Interface(), binding.ProtoBuf)
+		if c.Request.Method == http.MethodGet {
+			err = c.ShouldBindQuery(&req)
 		} else {
-			err = c.ShouldBindJSON(reqV[0].Interface())
+			err = c.ShouldBindJSON(&req)
 		}
+
 		if err != nil {
-			log.Errorf("parse param err:%v", err)
-			panic(err)
+			log.Errorf("parse param err: %v", err)
+			c.JSON(http.StatusOK, buildErrorResponse(err))
+			return
 		}
 
-		log.Infof("[REQ] URI:(%s) BODY:(%s)", c.Request.URL.Path, loghelper.ToPrintString(reqV[0].Interface()))
+		reqBytes, _ := json.Marshal(req)
+		log.Infof("[REQ] URI:(%s) BODY:(%s)", c.Request.URL.Path, string(reqBytes))
 
-		rspVV := reflect.ValueOf(fun).Call([]reflect.Value{reflect.ValueOf(c), reqV[0]})
-		if err, ok := rspVV[1].Interface().(error); ok {
-			log.Errorf("process err: %s", err.Error())
-			panic(err)
+		rsp, err := fn(c, &req)
+		if err != nil {
+			log.Errorf("[RSP] URI:(%s) err: %v", c.Request.URL.Path, err)
+			c.JSON(http.StatusOK, buildErrorResponse(err))
+			return
 		}
-		rsp = rspVV[0].Interface()
+
+		resp := &APIResponse{Code: 0, Message: "success", Data: rsp}
+		rspBytes, _ := json.Marshal(resp)
+		log.Infof("[RSP] URI:(%s) BODY:(%s)", c.Request.URL.Path, string(rspBytes))
+		c.JSON(http.StatusOK, resp)
 	}
 }
