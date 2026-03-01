@@ -3,13 +3,41 @@ package ginmw
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
 
+// LogFunc is a context-aware printf-style logging function.
+// The *gin.Context parameter allows callers to extract per-request
+// information (e.g. trace ID, request ID) when logging.
+type LogFunc func(c *gin.Context, format string, args ...any)
+
+var (
+	logFn   LogFunc
+	logFnMu sync.RWMutex
+)
+
+// SetLogFunc sets the global log function used by WrapperH.
+// If fn is nil, logging is disabled.
+func SetLogFunc(fn LogFunc) {
+	logFnMu.Lock()
+	defer logFnMu.Unlock()
+	logFn = fn
+}
+
+func getLogFunc() LogFunc {
+	logFnMu.RLock()
+	defer logFnMu.RUnlock()
+	return logFn
+}
+
 // WrapperH wraps a typed handler function into a gin.HandlerFunc.
 // The handler receives a parsed request and returns a response and error.
-// The response is wrapped in a unified APIResponse{Code, Message, Data} format.
+// The response is wrapped via the global ResponsePacker (default: APIResponse{Code, Message, Data}).
+//
+// Request/response logging uses the global LogFunc set via SetLogFunc.
+// If no LogFunc is set, no logging is performed.
 //
 // On success (err == nil): {code: 0, message: "success", data: <response>}
 // On error implementing Coder: {code: coder.Code(), message: coder.Message()}
@@ -18,7 +46,7 @@ import (
 // Request binding: GET uses ShouldBindQuery, other methods use ShouldBindJSON.
 func WrapperH[Request, Response any](fn func(*gin.Context, *Request) (*Response, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log := getLogger()
+		log := getLogFunc()
 
 		var req Request
 		var err error
@@ -31,24 +59,32 @@ func WrapperH[Request, Response any](fn func(*gin.Context, *Request) (*Response,
 		pk := getPacker()
 
 		if err != nil {
-			log.Errorf("parse param err: %v", err)
+			if log != nil {
+				log(c, "parse param err: %v", err)
+			}
 			c.JSON(http.StatusOK, pk.PackError(err))
 			return
 		}
 
-		reqBytes, _ := json.Marshal(req)
-		log.Infof("[REQ] URI:(%s) BODY:(%s)", c.Request.URL.Path, string(reqBytes))
+		if log != nil {
+			reqBytes, _ := json.Marshal(req)
+			log(c, "[REQ] URI:(%s) BODY:(%s)", c.Request.URL.Path, string(reqBytes))
+		}
 
 		rsp, err := fn(c, &req)
 		if err != nil {
-			log.Errorf("[RSP] URI:(%s) err: %v", c.Request.URL.Path, err)
+			if log != nil {
+				log(c, "[RSP] URI:(%s) err: %v", c.Request.URL.Path, err)
+			}
 			c.JSON(http.StatusOK, pk.PackError(err))
 			return
 		}
 
 		resp := pk.PackSuccess(rsp)
-		rspBytes, _ := json.Marshal(resp)
-		log.Infof("[RSP] URI:(%s) BODY:(%s)", c.Request.URL.Path, string(rspBytes))
+		if log != nil {
+			rspBytes, _ := json.Marshal(resp)
+			log(c, "[RSP] URI:(%s) BODY:(%s)", c.Request.URL.Path, string(rspBytes))
+		}
 		c.JSON(http.StatusOK, resp)
 	}
 }

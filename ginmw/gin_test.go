@@ -292,19 +292,12 @@ func TestSetResponsePacker_ResetToDefault(t *testing.T) {
 	}
 }
 
-func TestSetLogger(t *testing.T) {
-	var infoCalls, errorCalls int
-	mock := &mockLogger{
-		infof: func(format string, args ...any) {
-			infoCalls++
-		},
-		errorf: func(format string, args ...any) {
-			errorCalls++
-		},
-	}
-
-	SetLogger(mock)
-	defer SetLogger(nil) // reset to nop
+func TestSetLogFunc(t *testing.T) {
+	var logCalls int
+	SetLogFunc(func(c *gin.Context, format string, args ...any) {
+		logCalls++
+	})
+	defer SetLogFunc(nil)
 
 	router := gin.New()
 	router.POST("/test", WrapperH(testHandler))
@@ -316,31 +309,41 @@ func TestSetLogger(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(w, req)
 
-	if infoCalls < 2 {
-		t.Errorf("expected at least 2 info log calls, got %d", infoCalls)
+	if logCalls < 2 {
+		t.Errorf("expected at least 2 log calls, got %d", logCalls)
 	}
 
 	// error request — should log error
-	infoCalls = 0
-	errorCalls = 0
+	logCalls = 0
 	w = httptest.NewRecorder()
 	body = `{"name":""}`
 	req, _ = http.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(w, req)
 
-	if errorCalls < 1 {
-		t.Errorf("expected at least 1 error log call, got %d", errorCalls)
+	if logCalls < 1 {
+		t.Errorf("expected at least 1 log call, got %d", logCalls)
 	}
 }
 
-type mockLogger struct {
-	infof  func(format string, args ...any)
-	errorf func(format string, args ...any)
-}
+func TestSetLogFunc_Nil(t *testing.T) {
+	// Without LogFunc set, should still work (no panic, no logging).
+	SetLogFunc(nil)
 
-func (m *mockLogger) Infof(format string, args ...any)  { m.infof(format, args...) }
-func (m *mockLogger) Errorf(format string, args ...any) { m.errorf(format, args...) }
+	router := gin.New()
+	router.POST("/test", WrapperH(testHandler))
+
+	w := httptest.NewRecorder()
+	body := `{"name":"world"}`
+	req, _ := http.NewRequest(http.MethodPost, "/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	resp := parseAPIResponse(t, w)
+	if resp.Code != 0 {
+		t.Errorf("expected code 0, got %d", resp.Code)
+	}
+}
 
 func ExampleWrapperH() {
 	type LoginReq struct {
